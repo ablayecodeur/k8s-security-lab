@@ -1,0 +1,29 @@
+# Correction de la FAILLE 1. Le compte de service ne garde qu'un droit :
+# lire la ConfigMap « web-config », dans son propre namespace.
+# (Le ClusterRoleBinding « boutique-web-admin » est supprimé par le script
+# scripts/03-corriger-rbac.sh : un fichier YAML ne peut pas retirer une
+# ressource.)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: web-lit-sa-config
+  namespace: boutique
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["web-config"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: web-lit-sa-config
+  namespace: boutique
+subjects:
+  - kind: ServiceAccount
+    name: web
+    namespace: boutique
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: web-lit-sa-config

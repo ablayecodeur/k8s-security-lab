@@ -1,0 +1,44 @@
+# L'équipe « paie » : une API interne et le secret de sa base de données.
+# Rien ici n'est mal configuré — c'est la victime, pas la faille.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: paie-db
+  namespace: paie
+type: Opaque
+stringData:
+  utilisateur: paie_admin
+  mot-de-passe: mot-de-passe-de-demo-paie
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paie-api
+  namespace: paie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paie-api
+  template:
+    metadata:
+      labels:
+        app: paie-api
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paie-api
+  namespace: paie
+spec:
+  selector:
+    app: paie-api
+  ports:
+    - port: 80
+      targetPort: 80

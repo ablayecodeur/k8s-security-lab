@@ -1,0 +1,74 @@
+# L'application « boutique », VOLONTAIREMENT mal sécurisée. Trois failles,
+# repérées par FAILLE 1/2/3 ci-dessous. Ne jamais déployer ceci ailleurs
+# que dans ce lab.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web
+  namespace: boutique
+---
+# FAILLE 1 — RBAC trop large : le compte de service de l'application reçoit
+# le rôle cluster-admin, donc tous les droits sur tout le cluster. L'appli
+# n'a besoin que de lire sa propre ConfigMap.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: boutique-web-admin
+subjects:
+  - kind: ServiceAccount
+    name: web
+    namespace: boutique
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: boutique
+data:
+  message-accueil: "Bienvenue dans la boutique"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: boutique
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      serviceAccountName: web
+      containers:
+        - name: web
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+          env:
+            # FAILLE 3 — secret en clair : le mot de passe est écrit dans le
+            # manifest, donc dans Git, et lisible par quiconque peut lire le
+            # Deployment.
+            - name: DB_PASSWORD
+              value: "mot-de-passe-de-demo-boutique"
+# FAILLE 2 — aucune NetworkPolicy dans ce dossier : n'importe quel pod du
+# cluster peut joindre n'importe quel autre, y compris l'API de la paie.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: boutique
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80

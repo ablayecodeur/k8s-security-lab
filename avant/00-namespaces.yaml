@@ -1,0 +1,11 @@
+# Deux équipes sur le même cluster : la boutique en ligne (l'application
+# qu'on audite) et la paie (des données qui ne la regardent pas).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: boutique
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paie
