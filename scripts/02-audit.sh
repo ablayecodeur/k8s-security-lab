@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Audit des trois failles, depuis l'INTÉRIEUR du pod de la boutique : on se
 # met à la place de quelqu'un qui aurait pris la main sur l'application.
-# Usage : bash scripts/02-audit.sh > preuves/avant.txt
+# Usage : bash scripts/02-audit.sh > preuves/0-avant.txt
 set -uo pipefail
 K="kubectl --context k8s-security-lab"
 IN="$K -n boutique exec deploy/web --"
@@ -34,6 +34,10 @@ echo
 echo "=== FAILLE 2 — Réseau : la boutique peut-elle joindre l'API de la paie ?"
 echo "Depuis le pod : GET http://paie-api.paie.svc.cluster.local (code HTTP, 000 = injoignable)"
 $IN sh -c "curl -s -m 5 -o /dev/null -w '%{http_code}\n' http://paie-api.paie.svc.cluster.local"
+echo
+echo "Depuis le traitement de paie (le client légitime) : GET http://paie-api (code HTTP)"
+$K -n paie exec deploy/paie-traitement -- sh -c "curl -s -m 5 -o /dev/null -w '%{http_code}\n' http://paie-api.paie.svc.cluster.local"
+echo
 echo "NetworkPolicy présentes dans le cluster :"
 $K get networkpolicy --all-namespaces 2>&1
 echo
@@ -41,3 +45,14 @@ echo "=== FAILLE 3 — Secret en clair : que voit-on en lisant le Deployment ?"
 echo "\$ kubectl -n boutique get deploy web -o jsonpath='{.spec.template.spec.containers[0].env}'"
 $K -n boutique get deploy web -o jsonpath='{.spec.template.spec.containers[0].env}'
 echo
+echo
+echo "Dans le pod : l'application a-t-elle toujours son mot de passe ? (sans l'afficher)"
+$IN sh -c '[ -n "$DB_PASSWORD" ] && echo oui || echo non'
+echo
+echo "Le compte de service de la boutique peut-il lire les Secrets de son namespace ?"
+echo "\$ kubectl auth can-i get secrets -n boutique --as=system:serviceaccount:boutique:web"
+$K auth can-i get secrets -n boutique --as=system:serviceaccount:boutique:web
+
+# Un « no » de kubectl auth can-i renvoie un code d'erreur : ce n'est pas un
+# échec de l'audit, on termine donc toujours proprement.
+exit 0

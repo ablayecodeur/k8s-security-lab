@@ -1,23 +1,36 @@
 === FAILLE 1 — RBAC : que peut faire le compte de service de la boutique ?
 $ kubectl auth can-i list secrets --all-namespaces --as=system:serviceaccount:boutique:web
-yes
+no
 
 Depuis le pod : lister tous les secrets du cluster (code HTTP)
-200
+403
 
 Depuis le pod : lire le secret de la paie
-  mot-de-passe = mot-de-passe-de-demo-paie
-  utilisateur = paie_admin
+  refusé : 403 Forbidden — secrets "paie-db" is forbidden: User "system:serviceaccount:boutique:web" cannot get resource "secrets" in API group "" in the namespace "paie"
 
 Depuis le pod : lire sa propre ConfigMap (l'usage légitime, code HTTP)
 200
 
 === FAILLE 2 — Réseau : la boutique peut-elle joindre l'API de la paie ?
 Depuis le pod : GET http://paie-api.paie.svc.cluster.local (code HTTP, 000 = injoignable)
+000
+command terminated with exit code 28
+
+Depuis le traitement de paie (le client légitime) : GET http://paie-api (code HTTP)
 200
+
 NetworkPolicy présentes dans le cluster :
-No resources found
+NAMESPACE   NAME                             POD-SELECTOR   AGE
+paie        autoriser-la-paie-vers-son-api   app=paie-api   15s
+paie        tout-refuser-en-entree           <none>         15s
 
 === FAILLE 3 — Secret en clair : que voit-on en lisant le Deployment ?
 $ kubectl -n boutique get deploy web -o jsonpath='{.spec.template.spec.containers[0].env}'
 [{"name":"DB_PASSWORD","value":"mot-de-passe-de-demo-boutique"}]
+
+Dans le pod : l'application a-t-elle toujours son mot de passe ? (sans l'afficher)
+oui
+
+Le compte de service de la boutique peut-il lire les Secrets de son namespace ?
+$ kubectl auth can-i get secrets -n boutique --as=system:serviceaccount:boutique:web
+no

@@ -1,0 +1,33 @@
+# Correction de la FAILLE 2. Le namespace « paie » se ferme : plus aucune
+# entrée par défaut, puis une seule exception — les pods de la paie
+# elle-même. La boutique n'est pas citée, donc elle ne passe plus.
+#
+# Il faut un plugin réseau qui applique les NetworkPolicy (ici Calico) :
+# sans lui, ces objets sont acceptés par l'API mais n'ont aucun effet.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tout-refuser-en-entree
+  namespace: paie
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: autoriser-la-paie-vers-son-api
+  namespace: paie
+spec:
+  podSelector:
+    matchLabels:
+      app: paie-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80

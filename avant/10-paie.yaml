@@ -42,3 +42,24 @@ spec:
   ports:
     - port: 80
       targetPort: 80
+---
+# Le traitement de paie : le client LÉGITIME de l'API, dans le même namespace.
+# Il sert de témoin : après la correction réseau, lui doit toujours passer.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paie-traitement
+  namespace: paie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paie-traitement
+  template:
+    metadata:
+      labels:
+        app: paie-traitement
+    spec:
+      containers:
+        - name: traitement
+          image: nginx:1.27
